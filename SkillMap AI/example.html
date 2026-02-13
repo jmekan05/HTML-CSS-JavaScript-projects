@@ -1,0 +1,86 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>AI Code Mentor</title>
+  <style>
+    body{font-family:system-ui,Segoe UI,Arial;max-width:900px;margin:40px auto;padding:0 16px;}
+    textarea{width:100%;height:200px;font-family:monospace;font-size:14px;}
+    pre{background:#f7f7f7;padding:12px;border-radius:6px;white-space:pre-wrap}
+    .btn{padding:8px 12px;border-radius:6px;border:none;cursor:pointer;margin-right:8px}
+    .help{background:#4CAF50;color:white}
+    .nope{background:#f44336;color:white}
+  </style>
+</head>
+<body>
+  <h1>AI Code Mentor</h1>
+  <p>Paste a short code snippet and click Explain. The AI will explain and suggest a fix. Rate the answer to show human-in-the-loop.</p>
+
+  <label>Language:
+    <select id="lang">
+      <option>JavaScript</option>
+      <option>Python</option>
+      <option>Java</option>
+    </select>
+  </label>
+
+  <textarea id="code" placeholder="Paste code here...">
+// Example: simple JS function
+function sum(a,b){ return a+b }
+  </textarea>
+  
+  <div style="margin-top:10px">
+    <button id="explain" class="btn">Explain</button>
+  </div>
+
+  <h3>AI Explanation</h3>
+  <pre id="result">No explanation yet.</pre>
+
+  <div id="feedback" style="display:none;margin-top:10px">
+    <button id="helpful" class="btn help">Helpful</button>
+    <button id="needs" class="btn nope">Needs Work</button>
+  </div>
+
+<script>
+const base = ''; // if hosting API on same domain, else put full URL e.g. https://us-central1-...cloudfunctions.net
+
+document.getElementById('explain').onclick = async () => {
+  const code = document.getElementById('code').value;
+  const language = document.getElementById('lang').value;
+  document.getElementById('result').textContent = 'Thinking...';
+  try {
+    const resp = await fetch(base + '/api/explain', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({code, language})
+    });
+    const json = await resp.json();
+    if (json.error) throw new Error(json.error);
+    document.getElementById('result').textContent = json.text || JSON.stringify(json, null, 2);
+    window.__last = { id: json.id, code, responseText: json.text || '' };
+    document.getElementById('feedback').style.display = 'block';
+  } catch (err) {
+    document.getElementById('result').textContent = 'Error: ' + err.message;
+  }
+};
+
+document.getElementById('helpful').onclick = sendFeedback;
+document.getElementById('needs').onclick = sendFeedback;
+
+async function sendFeedback(e) {
+  const rating = e.target.id === 'helpful' ? 'helpful' : 'needs';
+  const payload = { ...window.__last, rating };
+  try {
+    await fetch(base + '/api/feedback', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    alert('Thanks — feedback recorded.');
+  } catch (err) {
+    alert('Failed to submit feedback: ' + err.message);
+  }
+}
+</script>
+</body>
+</html>
